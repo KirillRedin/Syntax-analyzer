@@ -22,3 +22,6 @@ class LexemesTable:
         for lexeme in self._lexemes:
             if lexeme.value == value:
                 return lexeme
+
+    def get_by_num(self, num):
+        return self._lexemes[num]
