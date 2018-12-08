@@ -1,0 +1,30 @@
+PROG(***)RAM TRU(*
+
+
+
+*)E1;
+
+(*BEGIN
+VAR F
+
+
+IR*) INS
+200
+
+21:60
+S(*T : 1*)
+14:24:90
+14:23:100
+00:00:00
+12:20 20:21
+25:24
+21:60
+0; INS
+(*&^%$##$%^&*(OKMNDRT&UIHJH*)VAR SECOND:200;
+IF FIRST = SECOND
+THEN FIRST: 20
+ELSE FIRST: 30
+(*':><!@#%*)
+(* багаторядковий
+коментар *)12
+END.  INS PKO
