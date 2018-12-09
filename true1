@@ -1,30 +1,15 @@
-PROG(***)RAM TRU(*
+PROGRAM SIG01;
+VAR K1:INTEGER; VARIABLE:FLOAT;
+BEGIN
+IF 5 = 5 THEN
+    IF K1 = G12 THEN
 
+    ELSE
+        IF 12 = 10 THEN
 
+        ELSE
 
-*)E1;
-
-(*BEGIN
-VAR F
-
-
-IR*) INS
-200
-
-21:60
-S(*T : 1*)
-14:24:90
-14:23:100
-00:00:00
-12:20 20:21
-25:24
-21:60
-0; INS
-(*&^%$##$%^&*(OKMNDRT&UIHJH*)VAR SECOND:200;
-IF FIRST = SECOND
-THEN FIRST: 20
-ELSE FIRST: 30
-(*':><!@#%*)
-(* багаторядковий
-коментар *)12
-END.  INS PKO
+        ENDIF;
+    ENDIF;
+ENDIF ;
+END.

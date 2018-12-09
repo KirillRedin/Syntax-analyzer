@@ -4,7 +4,15 @@ class Node:
         self.data = data
         self.depth = depth
 
-    def add_child(self, data):
-        node = Node(data, self.depth + 1)
+    def add_child(self, node):
         self.children.append(node)
         return node
+
+    def print(self):
+        for i in range(0, self.depth):
+            print('..', end='')
+
+        print(self.data)
+
+        for child in self.children:
+            child.print()

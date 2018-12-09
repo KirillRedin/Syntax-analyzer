@@ -2,6 +2,7 @@ from lexeme import Lexeme
 from lexemes_table import LexemesTable
 from error import Error
 from tabulate import tabulate
+from syntax_analyzer import SyntaxAnalyzer
 
 
 class LexicalAnalyzer:
@@ -26,7 +27,7 @@ class LexicalAnalyzer:
 
         self.lexemeCategories = ['KEYWORD',
                                  'U_INT',
-                                 'IDENTIFICATOR',
+                                 'IDENTIFIER',
                                  'DELIMITER']
 
         self.uIntsTable = LexemesTable(501)
@@ -70,8 +71,6 @@ class LexicalAnalyzer:
 
                 elif self.get_category(character) == 'DELIMITER':
                     if self.buf != '':
-                        self.get_lexeme()
-                        self.buf = character
                         self.get_lexeme()
                     self.buf = character
                     self.get_lexeme()
@@ -170,3 +169,6 @@ class LexicalAnalyzer:
 analyzer = LexicalAnalyzer()
 analyzer.parse('true1')
 analyzer.print_result()
+syntax_analyzer = SyntaxAnalyzer(analyzer.lexemesTable)
+syntax_analyzer.analyze()
+syntax_analyzer.print()

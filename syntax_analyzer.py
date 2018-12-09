@@ -1,4 +1,5 @@
 from node import Node
+from error import Error
 
 class SyntaxAnalyzer:
     def __init__(self, lexemes_table):
@@ -8,55 +9,265 @@ class SyntaxAnalyzer:
         self.tree = None
 
     def analyze(self):
+        self.tree = Node('<signal-program>', 0)
+        self.signal_program(self.tree)
         return
 
     def signal_program(self, node):
+        self.program(node.add_child(Node('<program>', node.depth + 1)))
         return
 
     def program(self, node):
-        return
+        current_lexeme = self.lexemesTable[self.lexeme_num]
 
-    def block(self):
-        return
+        if current_lexeme.value == 'PROGRAM':
+            node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+            if not self.procedure_identifier(node.add_child(Node('<procedure-identifier>', node.depth + 1))):
+                return
 
-    def variable_declaration(self):
-        return
+            current_lexeme = self.get_next_lexeme()
 
-    def declarations_list(self):
-        return
+            if current_lexeme.value == ';':
+                node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+                if self.block(node.add_child(Node('<block>', node.depth + 1))):
+                    current_lexeme = self.get_next_lexeme()
 
-    def declaration(self):
-        return
+                    if current_lexeme.value == '.':
+                        node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+                    else:
+                        self.errors.append(Error("Unexpected lexeme %s. Delimiter '.' expected" % current_lexeme.value,
+                                                 current_lexeme.line_num, current_lexeme.col_num))
+            else:
+                self.errors.append(Error("Unexpected lexeme %s. Delimiter ';' expected" % current_lexeme.value,
+                                         current_lexeme.line_num, current_lexeme.col_num))
+        else:
+            self.errors.append(Error("Unexpected lexeme %s. Keyword 'PROGRAM' expected" % current_lexeme.value,
+                                     current_lexeme.line_num, current_lexeme.col_num))
 
-    def attribute(self):
-        return
+    def block(self, node):
+        self.variable_declarations(node.add_child(Node('<variable-declarations>', node.depth + 1)))
 
-    def statements_list(self):
-        return
+        current_lexeme = self.get_current_lexeme()
 
-    def statement(self):
-        return
+        if current_lexeme.value == 'BEGIN':
+            node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
 
-    def condition_statement(self):
-        return
+            if self.statements_list(node.add_child(Node('<statements-list>', node.depth + 1))):
+                current_lexeme = self.get_next_lexeme()
 
-    def incomplete_condition_statement(self):
-        return
+                if current_lexeme.value == 'END':
+                    node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+                    return True
+                else:
+                    self.errors.append(Error("Unexpected lexeme %s. Keyword 'END' expected" % current_lexeme.value,
+                                             current_lexeme.line_num, current_lexeme.col_num))
+                    return False
+            else:
+                return False
+        else:
+            self.errors.append(Error("Unexpected lexeme %s. Keyword 'BEGIN' expected" % current_lexeme.value,
+                                     current_lexeme.line_num, current_lexeme.col_num))
+            return False
 
-    def alternative_part(self):
-        return
+    def variable_declarations(self, node):
+        current_lexeme = self.get_next_lexeme()
 
-    def conditional_expression(self):
-        return
+        if current_lexeme.value == 'VAR':
+            if self.declarations_list(node.add_child(Node('<declarations-list>', node.depth + 1))):
+                return True
+            else:
+                self.errors.append(Error("At least one declaration after 'VAR' keyword expected",
+                                         current_lexeme.line_num, current_lexeme.col_num))
+                return False
+        else:
+            node.add_child(Node('<empty>', node.depth + 1))
+            return True
 
-    def expression(self):
-        return
+    def declarations_list(self, node):
+        declaration_node = Node('<declaration>', node.depth + 1)
 
-    def variable_identifier(self):
-        return
+        if self.declaration(declaration_node):
+            node.add_child(declaration_node)
+            self.declarations_list(node.add_child(Node('<declaration-list>', node.depth + 1)))
+            return True
+        else:
+            node.add_child(Node('<empty>', node.depth + 1))
+            return False
 
-    def procedure_identifier(self):
-        return
+    def declaration(self, node):
+        if self.variable_identifier(node.add_child(Node('<variable-identifier>', node.depth + 1))):
+            current_lexeme = self.get_next_lexeme()
 
-    def identifier(self):
-        return
+            if current_lexeme.value == ':':
+                node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+                if self.attribute(node.add_child(Node('<attribute>', node.depth + 1))):
+                    current_lexeme = self.get_next_lexeme()
+
+                    if current_lexeme.value == ';':
+                        return True
+                    else:
+                        self.errors.append(Error("Unexpected lexeme %s. Delimiter ';' expected" % current_lexeme.value,
+                                                 current_lexeme.line_num, current_lexeme.col_num))
+                        return False
+                else:
+                    return False
+            else:
+                self.errors.append(Error("Unexpected lexeme %s. Delimiter ':' expected" % current_lexeme.value,
+                                         current_lexeme.line_num, current_lexeme.col_num))
+                return False
+        else:
+            current_lexeme = self.get_current_lexeme()
+
+            if current_lexeme.value != 'BEGIN':
+                self.errors.append(Error("Unexpected lexeme '%s', Identifier expected" % current_lexeme.value,
+                                         current_lexeme.line_num, current_lexeme.col_num))
+            return False
+
+    def attribute(self, node):
+        current_lexeme = self.get_next_lexeme()
+
+        if current_lexeme.value == 'INTEGER' or current_lexeme.value == 'FLOAT':
+            node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+            return True
+        else:
+            self.errors.append(Error("Unexpected lexeme % s. Keyword 'INTEGER' or 'FLOAT' expected"
+                                     % current_lexeme.value, current_lexeme.line_num, current_lexeme.col_num))
+            return False
+
+    def statements_list(self, node):
+        statement_node = Node('<statement>', node.depth + 1)
+
+        if self.statement(statement_node):
+            node.add_child(statement_node)
+            self.statements_list(node.add_child(Node('<statement-list>', node.depth + 1)))
+            return True
+        else:
+            node.add_child(Node('<empty>', node.depth + 1))
+            return False
+
+    def statement(self, node):
+        if self.condition_statement(node.add_child(Node('<condition-statement>', node.depth + 1))):
+            current_lexeme = self.get_next_lexeme()
+
+            if current_lexeme.value == 'ENDIF':
+                node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+
+                current_lexeme = self.get_next_lexeme()
+
+                if current_lexeme.value == ';':
+                    node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+                    return True
+                else:
+                    self.errors.append(Error("Unexpected lexeme %s. Delimiter ';' expected" % current_lexeme.value,
+                                             current_lexeme.line_num, current_lexeme.col_num))
+                    return False
+            else:
+                self.errors.append(Error("Unclosed statement. Keyword 'ENDIF' expected",
+                                         current_lexeme.line_num, current_lexeme.col_num))
+                return False
+        else:
+            return False
+
+    def condition_statement(self, node):
+        if self.incomplete_condition_statement(node.add_child(Node('<incomplete-condition-statement>', node.depth + 1))):
+            return self.alternative_part(node.add_child(Node('<alternative-part>', node.depth + 1)))
+        else:
+            return False
+
+    def incomplete_condition_statement(self, node):
+        current_lexeme = self.get_next_lexeme()
+
+        if current_lexeme.value == 'IF':
+            node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+
+            if self.conditional_expression(node.add_child(Node('<conditional-expression>', node.depth + 1))):
+                current_lexeme = self.get_next_lexeme()
+
+                if current_lexeme.value == 'THEN':
+                    node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+
+                    self.statements_list(node.add_child(Node('<statement-list>', node.depth + 1)))
+
+                    return True
+                else:
+                    self.errors.append(Error("Incomplete statement. Keyword 'THEN' expected",
+                                             current_lexeme.line_num, current_lexeme.col_num))
+                    return False
+            else:
+                return False
+        else:
+            self.get_previous_lexeme()
+            return False
+
+    def alternative_part(self, node):
+        current_lexeme = self.get_next_lexeme()
+
+        if current_lexeme.value == 'ELSE':
+            node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+            self.statements_list(node.add_child(Node('<statement-list>', node.depth + 1)))
+            return True
+        else:
+            node.add_child(Node('<empty>', node.depth + 1))
+            self.get_previous_lexeme()
+            return True
+
+    def conditional_expression(self, node):
+        if self.expression(node.add_child(Node('<expression>', node.depth + 1))):
+            current_lexeme = self.get_next_lexeme()
+
+            if current_lexeme.value == '=':
+                return self.expression(node.add_child(Node('<expression>', node.depth + 1)))
+            else:
+                self.errors.append(Error("Unexpected lexeme %s. Delimiter '=' expected" % current_lexeme.value,
+                                   current_lexeme.line_num, current_lexeme.col_num))
+                return False
+        else:
+            return False
+
+    def expression(self, node):
+        variable_node = Node('<variable-identifier-node>', node.depth + 1)
+
+        if self.variable_identifier(variable_node):
+            node.add_child(variable_node)
+            return True
+        elif 500 < self.get_current_lexeme().code < 600:
+            node.add_child(Node(str(self.get_current_lexeme().code) + ' ' + str(self.get_current_lexeme().value),
+                                node.depth + 1))
+            return True
+        else:
+            self.errors.append(Error("Incorrect expression. Identifier or Unsigned integer expected",
+                                     self.get_current_lexeme().line_num, self.get_current_lexeme().col_num))
+
+    def variable_identifier(self, node):
+        return self.identifier(node.add_child(Node('<identifier>', node.depth + 1)))
+
+    def procedure_identifier(self, node):
+        return self.identifier(node.add_child(Node('<identifier>', node.depth + 1)))
+
+    def identifier(self, node):
+        current_lexeme = self.get_next_lexeme()
+
+        if 1000 < current_lexeme.code < 1100:
+            node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+            return True
+        else:
+            return False
+
+    def get_next_lexeme(self):
+        self.lexeme_num += 1
+        return self.lexemesTable[self.lexeme_num]
+
+    def get_previous_lexeme(self):
+        self.lexeme_num -= 1
+        return self.lexemesTable[self.lexeme_num]
+
+    def get_current_lexeme(self):
+        return self.lexemesTable[self.lexeme_num]
+
+    def print(self):
+        self.tree.print()
+
+        for error in self.errors:
+            print('Error (line %d col %d):' % (error.line_num, error.col_num), error.text)
+
+
