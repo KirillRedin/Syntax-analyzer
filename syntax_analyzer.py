@@ -1,6 +1,7 @@
 from node import Node
 from error import Error
 
+
 class SyntaxAnalyzer:
     def __init__(self, lexemes_table):
         self.lexemesTable = lexemes_table
@@ -264,9 +265,10 @@ class SyntaxAnalyzer:
     def get_current_lexeme(self):
         return self.lexemesTable[self.lexeme_num]
 
-    def print(self):
+    def print_result(self):
         self.tree.print()
 
+    def print_errors(self):
         for error in self.errors:
             print('Error (line %d col %d):' % (error.line_num, error.col_num), error.text)
 

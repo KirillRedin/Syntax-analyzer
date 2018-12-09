@@ -162,13 +162,16 @@ class LexicalAnalyzer:
         print(tabulate(lexemes_table, headers))
         print()
 
+    def print_errors(self):
         for error in self.errors:
             print('Error (line %d col %d):' % (error.line_num, error.col_num), error.text)
 
 
 analyzer = LexicalAnalyzer()
 analyzer.parse('true1')
-analyzer.print_result()
+# analyzer.print_result()
 syntax_analyzer = SyntaxAnalyzer(analyzer.lexemesTable)
 syntax_analyzer.analyze()
-syntax_analyzer.print()
+syntax_analyzer.print_result()
+analyzer.print_errors()
+syntax_analyzer.print_errors()
