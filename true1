@@ -7,9 +7,4 @@ IF 5 = 5 THEN
     ELSE
         IF 12 = 10 THEN
 
-        ELSE
-
-        ENDIF;
-    ENDIF;
-ENDIF ;
-END.
+        ELSE.

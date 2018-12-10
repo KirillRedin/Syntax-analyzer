@@ -10,70 +10,96 @@ class SyntaxAnalyzer:
         self.tree = None
 
     def analyze(self):
+        if self.is_eof():
+            self.errors.append(Error('File is empty', 0, 0))
+            return False
         self.tree = Node('<signal-program>', 0)
         self.signal_program(self.tree)
-        return
 
     def signal_program(self, node):
-        self.program(node.add_child(Node('<program>', node.depth + 1)))
-        return
+        result = self.program(node.add_child(Node('<program>', node.depth + 1)))
+
+        if self.is_eof() and not result:
+            self.errors.append(Error("Unexpected End Of File after '%s'" % self.get_current_lexeme().value,
+                               self.get_current_lexeme().line_num, self.get_current_lexeme().col_num))
 
     def program(self, node):
         current_lexeme = self.lexemesTable[self.lexeme_num]
 
         if current_lexeme.value == 'PROGRAM':
             node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
-            if not self.procedure_identifier(node.add_child(Node('<procedure-identifier>', node.depth + 1))):
-                return
+            if self.is_eof():
+                return False
 
+            if not self.procedure_identifier(node.add_child(Node('<procedure-identifier>', node.depth + 1))):
+                return False
+
+            if self.is_eof():
+                return False
             current_lexeme = self.get_next_lexeme()
 
             if current_lexeme.value == ';':
                 node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+
                 if self.block(node.add_child(Node('<block>', node.depth + 1))):
+                    if self.is_eof():
+                        return False
                     current_lexeme = self.get_next_lexeme()
 
                     if current_lexeme.value == '.':
                         node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+                        return True
                     else:
-                        self.errors.append(Error("Unexpected lexeme %s. Delimiter '.' expected" % current_lexeme.value,
+                        self.errors.append(Error("Unexpected lexeme '%s'. Delimiter '.' expected" % current_lexeme.value,
                                                  current_lexeme.line_num, current_lexeme.col_num))
+                        return False
             else:
-                self.errors.append(Error("Unexpected lexeme %s. Delimiter ';' expected" % current_lexeme.value,
+                self.errors.append(Error("Unexpected lexeme '%s'. Delimiter ';' expected" % current_lexeme.value,
                                          current_lexeme.line_num, current_lexeme.col_num))
-        else:
-            self.errors.append(Error("Unexpected lexeme %s. Keyword 'PROGRAM' expected" % current_lexeme.value,
-                                     current_lexeme.line_num, current_lexeme.col_num))
-
-    def block(self, node):
-        self.variable_declarations(node.add_child(Node('<variable-declarations>', node.depth + 1)))
-
-        current_lexeme = self.get_current_lexeme()
-
-        if current_lexeme.value == 'BEGIN':
-            node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
-
-            if self.statements_list(node.add_child(Node('<statements-list>', node.depth + 1))):
-                current_lexeme = self.get_next_lexeme()
-
-                if current_lexeme.value == 'END':
-                    node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
-                    return True
-                else:
-                    self.errors.append(Error("Unexpected lexeme %s. Keyword 'END' expected" % current_lexeme.value,
-                                             current_lexeme.line_num, current_lexeme.col_num))
-                    return False
-            else:
                 return False
         else:
-            self.errors.append(Error("Unexpected lexeme %s. Keyword 'BEGIN' expected" % current_lexeme.value,
+            self.errors.append(Error("Unexpected lexeme '%s'. Keyword 'PROGRAM' expected" % current_lexeme.value,
                                      current_lexeme.line_num, current_lexeme.col_num))
             return False
 
+    def block(self, node):
+        if self.variable_declarations(node.add_child(Node('<variable-declarations>', node.depth + 1))):
+            if self.is_eof():
+                return
+            current_lexeme = self.get_current_lexeme()
+
+            if current_lexeme.value == 'BEGIN':
+                node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+
+                if self.statements_list(node.add_child(Node('<statements-list>', node.depth + 1))):
+                    if self.is_eof():
+                        return
+                    current_lexeme = self.get_next_lexeme()
+
+                    if current_lexeme.value == 'END':
+                        node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+                        return True
+                    else:
+                        self.errors.append(Error("Unexpected lexeme '%s'. Keyword 'END' expected" % current_lexeme.value,
+                                                 current_lexeme.line_num, current_lexeme.col_num))
+                        return False
+                else:
+                    return False
+            else:
+                self.errors.append(Error("Unexpected lexeme '%s'. Keyword 'BEGIN' expected" % current_lexeme.value,
+                                         current_lexeme.line_num, current_lexeme.col_num))
+                return False
+        else:
+            return False
+
     def variable_declarations(self, node):
+        if self.is_eof():
+            return
         current_lexeme = self.get_next_lexeme()
 
         if current_lexeme.value == 'VAR':
+            node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+
             if self.declarations_list(node.add_child(Node('<declarations-list>', node.depth + 1))):
                 return True
             else:
@@ -97,26 +123,34 @@ class SyntaxAnalyzer:
 
     def declaration(self, node):
         if self.variable_identifier(node.add_child(Node('<variable-identifier>', node.depth + 1))):
+            if self.is_eof():
+                return
             current_lexeme = self.get_next_lexeme()
 
             if current_lexeme.value == ':':
                 node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+
                 if self.attribute(node.add_child(Node('<attribute>', node.depth + 1))):
+                    if self.is_eof():
+                        return
                     current_lexeme = self.get_next_lexeme()
 
                     if current_lexeme.value == ';':
+                        node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
                         return True
                     else:
-                        self.errors.append(Error("Unexpected lexeme %s. Delimiter ';' expected" % current_lexeme.value,
+                        self.errors.append(Error("Unexpected lexeme '%s'. Delimiter ';' expected" % current_lexeme.value,
                                                  current_lexeme.line_num, current_lexeme.col_num))
                         return False
                 else:
                     return False
             else:
-                self.errors.append(Error("Unexpected lexeme %s. Delimiter ':' expected" % current_lexeme.value,
+                self.errors.append(Error("Unexpected lexeme '%s'. Delimiter ':' expected" % current_lexeme.value,
                                          current_lexeme.line_num, current_lexeme.col_num))
                 return False
         else:
+            if self.is_eof():
+                return
             current_lexeme = self.get_current_lexeme()
 
             if current_lexeme.value != 'BEGIN':
@@ -125,13 +159,15 @@ class SyntaxAnalyzer:
             return False
 
     def attribute(self, node):
+        if self.is_eof():
+            return
         current_lexeme = self.get_next_lexeme()
 
         if current_lexeme.value == 'INTEGER' or current_lexeme.value == 'FLOAT':
             node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
             return True
         else:
-            self.errors.append(Error("Unexpected lexeme % s. Keyword 'INTEGER' or 'FLOAT' expected"
+            self.errors.append(Error("Unexpected lexeme '%s'. Keyword 'INTEGER' or 'FLOAT' expected"
                                      % current_lexeme.value, current_lexeme.line_num, current_lexeme.col_num))
             return False
 
@@ -148,22 +184,26 @@ class SyntaxAnalyzer:
 
     def statement(self, node):
         if self.condition_statement(node.add_child(Node('<condition-statement>', node.depth + 1))):
+            if self.is_eof():
+                return
             current_lexeme = self.get_next_lexeme()
 
             if current_lexeme.value == 'ENDIF':
                 node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
 
+                if self.is_eof():
+                    return
                 current_lexeme = self.get_next_lexeme()
 
                 if current_lexeme.value == ';':
                     node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
                     return True
                 else:
-                    self.errors.append(Error("Unexpected lexeme %s. Delimiter ';' expected" % current_lexeme.value,
+                    self.errors.append(Error("Unexpected lexeme '%s'. Delimiter ';' expected" % current_lexeme.value,
                                              current_lexeme.line_num, current_lexeme.col_num))
                     return False
             else:
-                self.errors.append(Error("Unclosed statement. Keyword 'ENDIF' expected",
+                self.errors.append(Error("Unexpected lexeme '%s'. Keyword 'ENDIF' expected" % current_lexeme.value,
                                          current_lexeme.line_num, current_lexeme.col_num))
                 return False
         else:
@@ -176,12 +216,16 @@ class SyntaxAnalyzer:
             return False
 
     def incomplete_condition_statement(self, node):
+        if self.is_eof():
+            return
         current_lexeme = self.get_next_lexeme()
 
         if current_lexeme.value == 'IF':
             node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
 
             if self.conditional_expression(node.add_child(Node('<conditional-expression>', node.depth + 1))):
+                if self.is_eof():
+                    return
                 current_lexeme = self.get_next_lexeme()
 
                 if current_lexeme.value == 'THEN':
@@ -191,7 +235,7 @@ class SyntaxAnalyzer:
 
                     return True
                 else:
-                    self.errors.append(Error("Incomplete statement. Keyword 'THEN' expected",
+                    self.errors.append(Error("Unexpected lexeme '%s' Keyword 'THEN' expected" % current_lexeme.value,
                                              current_lexeme.line_num, current_lexeme.col_num))
                     return False
             else:
@@ -201,10 +245,13 @@ class SyntaxAnalyzer:
             return False
 
     def alternative_part(self, node):
+        if self.is_eof():
+            return
         current_lexeme = self.get_next_lexeme()
 
         if current_lexeme.value == 'ELSE':
             node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
+
             self.statements_list(node.add_child(Node('<statement-list>', node.depth + 1)))
             return True
         else:
@@ -214,12 +261,15 @@ class SyntaxAnalyzer:
 
     def conditional_expression(self, node):
         if self.expression(node.add_child(Node('<expression>', node.depth + 1))):
+            if self.is_eof():
+                return
             current_lexeme = self.get_next_lexeme()
 
             if current_lexeme.value == '=':
+                node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
                 return self.expression(node.add_child(Node('<expression>', node.depth + 1)))
             else:
-                self.errors.append(Error("Unexpected lexeme %s. Delimiter '=' expected" % current_lexeme.value,
+                self.errors.append(Error("Unexpected lexeme '%s'. Delimiter '=' expected" % current_lexeme.value,
                                    current_lexeme.line_num, current_lexeme.col_num))
                 return False
         else:
@@ -246,6 +296,8 @@ class SyntaxAnalyzer:
         return self.identifier(node.add_child(Node('<identifier>', node.depth + 1)))
 
     def identifier(self, node):
+        if self.is_eof():
+            return
         current_lexeme = self.get_next_lexeme()
 
         if 1000 < current_lexeme.code < 1100:
@@ -258,6 +310,12 @@ class SyntaxAnalyzer:
         self.lexeme_num += 1
         return self.lexemesTable[self.lexeme_num]
 
+    def is_eof(self):
+        try:
+            self.lexemesTable[self.lexeme_num + 1]
+        except IndexError:
+            return True
+
     def get_previous_lexeme(self):
         self.lexeme_num -= 1
         return self.lexemesTable[self.lexeme_num]
@@ -266,7 +324,10 @@ class SyntaxAnalyzer:
         return self.lexemesTable[self.lexeme_num]
 
     def print_result(self):
-        self.tree.print()
+        try:
+            self.tree.print()
+        except AttributeError:
+            return
 
     def print_errors(self):
         for error in self.errors:
