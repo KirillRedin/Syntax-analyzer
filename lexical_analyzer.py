@@ -168,7 +168,7 @@ class LexicalAnalyzer:
 
 
 analyzer = LexicalAnalyzer()
-analyzer.parse('true1')
+analyzer.parse('false3')
 # analyzer.print_result()
 syntax_analyzer = SyntaxAnalyzer(analyzer.lexemesTable)
 syntax_analyzer.analyze()

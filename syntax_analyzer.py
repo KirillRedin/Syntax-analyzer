@@ -19,7 +19,7 @@ class SyntaxAnalyzer:
     def signal_program(self, node):
         result = self.program(node.add_child(Node('<program>', node.depth + 1)))
 
-        if self.is_eof() and not result:
+        if self.is_eof() and not result and len(self.errors) == 0:
             self.errors.append(Error("Unexpected End Of File after '%s'" % self.get_current_lexeme().value,
                                self.get_current_lexeme().line_num, self.get_current_lexeme().col_num))
 
@@ -100,12 +100,7 @@ class SyntaxAnalyzer:
         if current_lexeme.value == 'VAR':
             node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
 
-            if self.declarations_list(node.add_child(Node('<declarations-list>', node.depth + 1))):
-                return True
-            else:
-                self.errors.append(Error("At least one declaration after 'VAR' keyword expected",
-                                         current_lexeme.line_num, current_lexeme.col_num))
-                return False
+            return self.declarations_list(node.add_child(Node('<declarations-list>', node.depth + 1)))
         else:
             node.add_child(Node('<empty>', node.depth + 1))
             return True
@@ -115,10 +110,12 @@ class SyntaxAnalyzer:
 
         if self.declaration(declaration_node):
             node.add_child(declaration_node)
-            self.declarations_list(node.add_child(Node('<declaration-list>', node.depth + 1)))
+            return self.declarations_list(node.add_child(Node('<declaration-list>', node.depth + 1)))
+        elif len(self.errors) == 0:
+            node.add_child(Node('<empty>', node.depth + 1))
             return True
         else:
-            node.add_child(Node('<empty>', node.depth + 1))
+            node.add_child(declaration_node)
             return False
 
     def declaration(self, node):
@@ -178,8 +175,11 @@ class SyntaxAnalyzer:
             node.add_child(statement_node)
             self.statements_list(node.add_child(Node('<statement-list>', node.depth + 1)))
             return True
-        else:
+        elif len(self.errors) == 0:
             node.add_child(Node('<empty>', node.depth + 1))
+            return True
+        else:
+            node.add_child(statement_node)
             return False
 
     def statement(self, node):
@@ -198,11 +198,11 @@ class SyntaxAnalyzer:
                 if current_lexeme.value == ';':
                     node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
                     return True
-                else:
+                elif len(self.errors) == 0:
                     self.errors.append(Error("Unexpected lexeme '%s'. Delimiter ';' expected" % current_lexeme.value,
                                              current_lexeme.line_num, current_lexeme.col_num))
                     return False
-            else:
+            elif len(self.errors) == 0:
                 self.errors.append(Error("Unexpected lexeme '%s'. Keyword 'ENDIF' expected" % current_lexeme.value,
                                          current_lexeme.line_num, current_lexeme.col_num))
                 return False
@@ -210,7 +210,8 @@ class SyntaxAnalyzer:
             return False
 
     def condition_statement(self, node):
-        if self.incomplete_condition_statement(node.add_child(Node('<incomplete-condition-statement>', node.depth + 1))):
+        if self.incomplete_condition_statement(node.add_child(Node('<incomplete-condition-statement>', node.depth + 1)))\
+                and len(self.errors) == 0:
             return self.alternative_part(node.add_child(Node('<alternative-part>', node.depth + 1)))
         else:
             return False
@@ -234,7 +235,7 @@ class SyntaxAnalyzer:
                     self.statements_list(node.add_child(Node('<statement-list>', node.depth + 1)))
 
                     return True
-                else:
+                elif len(self.errors) == 0:
                     self.errors.append(Error("Unexpected lexeme '%s' Keyword 'THEN' expected" % current_lexeme.value,
                                              current_lexeme.line_num, current_lexeme.col_num))
                     return False
@@ -254,7 +255,7 @@ class SyntaxAnalyzer:
 
             self.statements_list(node.add_child(Node('<statement-list>', node.depth + 1)))
             return True
-        else:
+        elif len(self.errors) == 0:
             node.add_child(Node('<empty>', node.depth + 1))
             self.get_previous_lexeme()
             return True
@@ -268,7 +269,7 @@ class SyntaxAnalyzer:
             if current_lexeme.value == '=':
                 node.add_child(Node(str(current_lexeme.code) + ' ' + current_lexeme.value, node.depth + 1))
                 return self.expression(node.add_child(Node('<expression>', node.depth + 1)))
-            else:
+            elif len(self.errors) == 0:
                 self.errors.append(Error("Unexpected lexeme '%s'. Delimiter '=' expected" % current_lexeme.value,
                                    current_lexeme.line_num, current_lexeme.col_num))
                 return False
@@ -288,6 +289,7 @@ class SyntaxAnalyzer:
         else:
             self.errors.append(Error("Incorrect expression. Identifier or Unsigned integer expected",
                                      self.get_current_lexeme().line_num, self.get_current_lexeme().col_num))
+            return False
 
     def variable_identifier(self, node):
         return self.identifier(node.add_child(Node('<identifier>', node.depth + 1)))

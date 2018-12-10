@@ -5,11 +5,11 @@ IF 5 = 5 THEN
     IF K1 = G12 THEN
 
     ELSE
-        IF 12 = 10 THEN
+        IF 12 = ; THEN
 
         ELSE
 
-        ENDIF;
+        ENDIF
     ENDIF;
 ENDIF ;
 END.
